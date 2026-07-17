@@ -1,0 +1,53 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from '@/shared/api/client'
+import type { LoginRequest, MeResponse, SignupRequest } from '@/shared/api/types'
+import { authApi } from './api'
+
+export const meQueryKey = ['auth', 'me'] as const
+
+// 로그인 여부는 GET /auth/me 로만 판단할 수 있다(쿠키가 httpOnly).
+// 401 이면 비로그인으로 간주하고 null 을 반환한다.
+export function useMe() {
+  return useQuery<MeResponse | null>({
+    queryKey: meQueryKey,
+    queryFn: async ({ signal }) => {
+      try {
+        return await authApi.me(signal)
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          return null
+        }
+        throw error
+      }
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: LoginRequest) => authApi.login(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meQueryKey })
+    },
+  })
+}
+
+export function useSignup() {
+  return useMutation({
+    mutationFn: (body: SignupRequest) => authApi.signup(body),
+  })
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => authApi.logout(),
+    onSettled: () => {
+      // 성공/실패와 무관하게 클라이언트 상태는 비운다.
+      queryClient.setQueryData(meQueryKey, null)
+      queryClient.invalidateQueries({ queryKey: meQueryKey })
+    },
+  })
+}
