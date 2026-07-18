@@ -1,6 +1,7 @@
 import { ApiError } from '@/shared/api/client'
 import { Badge } from '@/shared/ui/Badge'
 import { Button } from '@/shared/ui/Button'
+import { Logo } from '@/shared/ui/Logo'
 import { useLogout, useMe } from '@/features/auth/hooks'
 import { useProjectList } from '../hooks'
 import type { ProjectListItem } from '@/shared/api/types'
@@ -11,27 +12,40 @@ export function ProjectListPage() {
   const { data, isPending, isError, error } = useProjectList()
 
   return (
-    <div className="min-h-screen bg-paper">
-      <header className="border-b border-line px-6 py-5 lg:px-12">
-        <div className="mx-auto flex max-w-5xl items-baseline justify-between">
-          <div className="space-y-0.5">
-            <p className="font-display text-[11px] tracking-[0.2em] text-draft uppercase">
-              Team1
-            </p>
-            <h1 className="font-body text-xl font-bold tracking-tight text-ink">
-              프로젝트
-            </h1>
-          </div>
+    <div className="relative min-h-screen overflow-hidden bg-ink">
+      {/* subtle background glow */}
+      <div className="pointer-events-none absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-paper/5 blur-3xl" />
+
+      {/* navbar */}
+      <header className="relative border-b border-paper/10 px-6 py-5 lg:px-12">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <Logo />
           <div className="flex items-center gap-4">
-            {me && <span className="font-body text-sm text-ink-soft">{me.name}</span>}
-            <Button variant="ghost" onClick={() => logout.mutate()}>
+            {me && (
+              <span className="font-body text-sm text-paper/60">{me.name}</span>
+            )}
+            <Button
+              variant="secondary"
+              className="border-paper/20 text-paper/80 hover:bg-paper/10"
+              onClick={() => logout.mutate()}
+            >
               로그아웃
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-10 lg:px-12">
+      {/* main */}
+      <main className="relative mx-auto max-w-5xl px-6 py-10 lg:px-12">
+        <div className="mb-8 space-y-0.5">
+          <p className="font-display text-[11px] tracking-[0.2em] text-draft uppercase">
+            내 프로젝트
+          </p>
+          <h1 className="font-body text-xl font-bold tracking-tight text-paper">
+            참여 중인 프로젝트
+          </h1>
+        </div>
+
         {isPending && (
           <p className="font-display text-sm text-draft">불러오는 중…</p>
         )}
@@ -58,7 +72,7 @@ export function ProjectListPage() {
 
 function ProjectCard({ project }: { project: ProjectListItem }) {
   return (
-    <li className="blueprint-frame p-5">
+    <li className="rounded-2xl bg-paper p-6 shadow-lg transition-shadow hover:shadow-xl">
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-body text-base font-bold tracking-tight text-ink">
           {project.title}
@@ -76,7 +90,7 @@ function ProjectCard({ project }: { project: ProjectListItem }) {
         <Badge tone={project.status === 'ACTIVE' ? 'draft' : 'neutral'}>
           {project.status === 'ACTIVE' ? '진행 중' : '보관됨'}
         </Badge>
-        <span className="coord-label">#{project.projectId}</span>
+        <span className="coord-label text-draft">#{project.projectId}</span>
       </div>
     </li>
   )
@@ -84,16 +98,15 @@ function ProjectCard({ project }: { project: ProjectListItem }) {
 
 function EmptyState() {
   return (
-    <div className="blueprint-frame flex flex-col items-center gap-3 px-8 py-16 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-paper/10 bg-paper/5 px-8 py-16 text-center backdrop-blur-sm">
       <p className="font-display text-[11px] tracking-[0.2em] text-draft uppercase">
         x:0 y:0 — 빈 화면
       </p>
-      <h2 className="font-body text-lg font-bold tracking-tight text-ink">
+      <h2 className="font-body text-lg font-bold tracking-tight text-paper">
         아직 참여 중인 프로젝트가 없습니다
       </h2>
-      <p className="max-w-xs font-body text-sm text-ink-soft">
-        새 프로젝트를 만들거나, 팀에서 받은 초대 링크로 참여해 첫 회의록을
-        등록해보세요.
+      <p className="max-w-xs font-body text-sm text-paper/60">
+        팀 리더로부터 초대 링크를 받아 참여해보세요.
       </p>
     </div>
   )
