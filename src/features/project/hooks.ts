@@ -35,3 +35,10 @@ export function useJoinProject() {
     },
   })
 }
+
+// 초대 링크는 프로젝트 상태를 바꾸지 않으므로 캐시 무효화가 필요 없다.
+export function useCreateInviteLink() {
+  return useMutation({
+    mutationFn: (projectId: number) => projectApi.createInviteLink(projectId),
+  })
+}
