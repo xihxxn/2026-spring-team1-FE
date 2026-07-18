@@ -17,10 +17,11 @@ export function useProjectScreens(projectId: number) {
   })
 }
 
-export function useWireframe(screenId: number) {
+export function useWireframe(screenId: number, enabled = true) {
   return useQuery({
     queryKey: wireframeKeys.detail(screenId),
     queryFn: ({ signal }) => wireframeApi.getWireframe(screenId, signal),
+    enabled,
   })
 }
 

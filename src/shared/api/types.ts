@@ -171,6 +171,49 @@ export interface StageDocumentResponse {
   content: unknown
 }
 
+// stageType 별 content 실제 구조. StageDocumentResponse.content(unknown)를
+// 화면에서 렌더링할 때만 stageType 기준으로 좁혀서 사용한다.
+export interface PlanContent {
+  problemDefinition: string
+  targetUser: string
+  servicePurpose: string
+  coreValue: string
+}
+
+export interface FeatureSpecContent {
+  features: {
+    name: string
+    description: string
+    priority: 'HIGH' | 'MEDIUM' | 'LOW'
+    includedInMvp: boolean
+  }[]
+}
+
+export interface ScreenSpecContent {
+  screens: {
+    screenId: number
+    name: string
+    purpose: string
+    components: { id: string; type: string; name: string; description: string }[]
+    inputs: {
+      id: string
+      label: string
+      inputType: string
+      placeholder: string
+      required: boolean
+      validation: string
+    }[]
+    buttons: { id: string; label: string; action: string; role: string }[]
+    navigation: {
+      triggerId: string
+      targetScreenId: number
+      targetScreenName: string
+      condition: string
+    }[]
+    exceptions: { type: string; condition: string; message: string; handling: string }[]
+  }[]
+}
+
 // ─────────────────────────────────────────
 // wireframe
 // ─────────────────────────────────────────

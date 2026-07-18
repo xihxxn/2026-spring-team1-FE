@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/shared/api/client'
 import { GlassCard } from '@/shared/ui/GlassCard'
 import { Badge } from '@/shared/ui/Badge'
 import {
+  stageKeys,
   useConfirmDocument,
   useGenerateFeatureSpec,
   useGeneratePlan,
@@ -16,8 +18,16 @@ import {
 } from '../hooks'
 import { useCreateMeetingNote, useMeetingFileStatus, useUploadMeetingFile } from '@/features/meeting/hooks'
 import { useProjectWebSocket } from '@/shared/lib/useProjectWebSocket'
+import { useEscapeKey } from '@/shared/lib/useEscapeKey'
 import { useProjectDetail } from '@/features/project/hooks'
-import type { StageType } from '@/shared/api/types'
+import { normalizeScreenSpecContent } from '../lib/screenSpec'
+import type {
+  FeatureSpecContent,
+  PlanContent,
+  ScreenSpecContent,
+  StageDocumentResponse,
+  StageType,
+} from '@/shared/api/types'
 
 // ── constants ──────────────────────────────────────────────────
 const STAGE_ORDER: Exclude<StageType, 'WIREFRAME'>[] = ['PLAN', 'FEATURE_SPEC', 'SCREEN_SPEC']
@@ -37,16 +47,18 @@ export function StagePage() {
   const id = Number(projectId)
   const stage = stageType as Exclude<StageType, 'WIREFRAME'>
 
+  const queryClient = useQueryClient()
   const { data: project } = useProjectDetail(id)
   const isLeader = project?.myRole === 'LEADER'
 
-  const { data: doc, isPending, isError, error, refetch } = useStageDocument(id, stage)
-  const confirmDoc = useConfirmDocument(id)
+  const { data: doc, isPending, isError, error } = useStageDocument(id, stage)
+  const confirmDoc = useConfirmDocument(id, stage)
   const updateSnapshot = useUpdateSnapshot(id)
   const { sendDocumentUpdate } = useProjectWebSocket(id)
 
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
@@ -55,18 +67,33 @@ export function StagePage() {
 
   const handleStartEdit = () => {
     setEditContent(JSON.stringify(doc?.content, null, 2))
+    setEditError(null)
     setEditing(true)
   }
 
   const handleSaveEdit = () => {
     if (!doc) return
+    let parsedContent: unknown
+    try {
+      parsedContent = JSON.parse(editContent)
+    } catch {
+      setEditError('JSON 형식이 올바르지 않습니다. 오류를 수정한 뒤 다시 저장해주세요.')
+      return
+    }
+    setEditError(null)
     updateSnapshot.mutate(
       { documentId: doc.documentId, content: editContent },
       {
         onSuccess: () => {
           setEditing(false)
-          refetch()
+          queryClient.setQueryData<StageDocumentResponse>(stageKeys.document(id, stage), {
+            ...doc,
+            content: parsedContent,
+          })
           sendDocumentUpdate({ documentId: doc.documentId, stageType: stage })
+        },
+        onError: (e) => {
+          setEditError(e instanceof ApiError ? e.message : '문서 저장에 실패했습니다.')
         },
       },
     )
@@ -76,7 +103,6 @@ export function StagePage() {
     if (!doc) return
     setConfirmError(null)
     confirmDoc.mutate(doc.documentId, {
-      onSuccess: () => refetch(),
       onError: (e) => setConfirmError(e instanceof ApiError ? e.message : '확정에 실패했습니다.'),
     })
   }
@@ -138,9 +164,6 @@ export function StagePage() {
             <Badge tone={doc.status === 'CONFIRMED' ? 'confirm' : 'draft'}>
               {doc.status === 'CONFIRMED' ? '확정됨' : '초안'}
             </Badge>
-          )}
-          {doc && (
-            <span className="font-display text-base text-white/30">문서 #{doc.documentId}</span>
           )}
         </div>
 
@@ -208,12 +231,25 @@ export function StagePage() {
         <GlassCard className="px-8 py-6">
           <textarea
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
+            onChange={(e) => {
+              setEditContent(e.target.value)
+              if (editError) setEditError(null)
+            }}
+            aria-invalid={Boolean(editError)}
+            aria-describedby={editError ? 'snapshot-edit-error' : undefined}
             className="h-[480px] w-full resize-none bg-transparent font-display text-sm leading-relaxed text-white/80 outline-none"
           />
+          {editError && (
+            <p id="snapshot-edit-error" role="alert" className="mt-3 font-display text-sm text-red-200/80">
+              {editError}
+            </p>
+          )}
           <div className="mt-4 flex gap-3 border-t border-white/[0.08] pt-4">
             <button
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                setEditError(null)
+                setEditing(false)
+              }}
               className="h-9 rounded-2xl border border-white/[0.12] px-4 font-display text-[13px] tracking-wide text-white/50 uppercase hover:bg-white/[0.05] hover:text-white hover:shadow-[0_0_18px_rgba(255,255,255,0.15),0_0_5px_rgba(255,255,255,0.08)]"
             >
               취소
@@ -247,7 +283,7 @@ export function StagePage() {
           stageType={stage}
           prevDocumentId={prevDoc?.documentId}
           onClose={() => setShowGenerateModal(false)}
-          onSuccess={() => { setShowGenerateModal(false); refetch() }}
+          onSuccess={() => setShowGenerateModal(false)}
         />
       )}
     </div>
@@ -255,18 +291,211 @@ export function StagePage() {
 }
 
 // ── document content renderer ──────────────────────────────────
-function DocumentContent({ content, stageType }: { content: unknown; stageType: string }) {
-  if (typeof content === 'string') {
-    return <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-white/75">{content}</p>
-  }
+// stageType 별로 content 의 실제 필드 구조가 다르므로, 각 타입에 맞는
+// 사람이 읽는 문서 레이아웃으로 렌더링한다. 알 수 없는 형태(스냅샷 편집으로
+// 구조가 깨졌거나 문자열로 저장된 경우 등)에는 JSON 원본으로 안전하게 폴백한다.
+function DocumentContent({
+  content,
+  stageType,
+}: {
+  content: unknown
+  stageType: Exclude<StageType, 'WIREFRAME'>
+}) {
   if (content && typeof content === 'object') {
+    if (stageType === 'PLAN' && isPlanContent(content)) {
+      return <PlanDocument content={content} />
+    }
+    if (stageType === 'FEATURE_SPEC' && isFeatureSpecContent(content)) {
+      return <FeatureSpecDocument content={content} />
+    }
+    if (stageType === 'SCREEN_SPEC') {
+      const screenSpec = normalizeScreenSpecContent(content)
+      if (screenSpec) return <ScreenSpecDocument content={screenSpec} />
+    }
     return (
       <pre className="whitespace-pre-wrap font-display text-sm leading-relaxed text-white/70 overflow-x-auto">
         {JSON.stringify(content, null, 2)}
       </pre>
     )
   }
+  if (typeof content === 'string') {
+    return <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-white/75">{content}</p>
+  }
   return <p className="font-display text-sm text-white/30">(내용 없음)</p>
+}
+
+function isPlanContent(v: object): v is PlanContent {
+  return 'problemDefinition' in v && 'targetUser' in v
+}
+function isFeatureSpecContent(v: object): v is FeatureSpecContent {
+  return 'features' in v && Array.isArray((v as FeatureSpecContent).features)
+}
+// ── section primitives ───────────────────────────────────────
+function DocSection({
+  index,
+  title,
+  children,
+}: {
+  index: number
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section>
+      <h3 className="mb-2 font-body text-lg font-bold text-white">
+        {index}. {title}
+      </h3>
+      <div className="font-body text-sm leading-relaxed text-white/70">{children}</div>
+    </section>
+  )
+}
+
+function Divider() {
+  return <div className="my-6 border-t border-white/[0.08]" />
+}
+
+// ── PLAN ──────────────────────────────────────────────────────
+function PlanDocument({ content }: { content: PlanContent }) {
+  const sections: { title: string; body: string }[] = [
+    { title: '문제 정의', body: content.problemDefinition },
+    { title: '타겟 사용자', body: content.targetUser },
+    { title: '서비스 목적', body: content.servicePurpose },
+    { title: '핵심 가치', body: content.coreValue },
+  ]
+  return (
+    <div className="space-y-6">
+      {sections.map((s, i) => (
+        <div key={s.title}>
+          {i > 0 && <Divider />}
+          <DocSection index={i + 1} title={s.title}>
+            <p className="whitespace-pre-wrap">{s.body}</p>
+          </DocSection>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── FEATURE_SPEC ──────────────────────────────────────────────
+const PRIORITY_TONE = {
+  HIGH: 'confirm',
+  MEDIUM: 'neutral',
+  LOW: 'draft',
+} as const
+
+function FeatureSpecDocument({ content }: { content: FeatureSpecContent }) {
+  return (
+    <div>
+      <h3 className="mb-4 font-body text-lg font-bold text-white">기능 목록</h3>
+      <ul className="space-y-3">
+        {content.features.map((f) => (
+          <li
+            key={f.name}
+            className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-5 py-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-body text-sm font-bold text-white">{f.name}</p>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Badge tone={PRIORITY_TONE[f.priority]}>{f.priority}</Badge>
+                {f.includedInMvp && <Badge tone="confirm">MVP</Badge>}
+              </div>
+            </div>
+            <p className="mt-1.5 font-body text-sm leading-relaxed text-white/60">
+              {f.description}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ── SCREEN_SPEC ───────────────────────────────────────────────
+function ScreenSpecDocument({ content }: { content: ScreenSpecContent }) {
+  return (
+    <div className="space-y-10">
+      {content.screens.map((screen, i) => (
+        <div key={screen.screenId}>
+          {i > 0 && <Divider />}
+          <h3 className="mb-1 font-body text-lg font-bold text-white">
+            {i + 1}. {screen.name}
+          </h3>
+          <p className="mb-4 font-body text-sm text-white/50">{screen.purpose}</p>
+
+          {screen.components.length > 0 && (
+            <ScreenSubList title="구성 요소">
+              {screen.components.map((c) => (
+                <li key={c.id}>
+                  <span className="font-body text-white/85">{c.name}</span>
+                  <span className="text-white/45"> — {c.description}</span>
+                </li>
+              ))}
+            </ScreenSubList>
+          )}
+
+          {screen.inputs.length > 0 && (
+            <ScreenSubList title="입력 항목">
+              {screen.inputs.map((inp) => (
+                <li key={inp.id}>
+                  <span className="font-body text-white/85">{inp.label}</span>
+                  <span className="text-white/45">
+                    {' '}
+                    — {inp.inputType}
+                    {inp.required ? ' · 필수' : ' · 선택'}
+                    {inp.validation ? ` · ${inp.validation}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ScreenSubList>
+          )}
+
+          {screen.buttons.length > 0 && (
+            <ScreenSubList title="버튼">
+              {screen.buttons.map((b) => (
+                <li key={b.id}>
+                  <span className="font-body text-white/85">{b.label}</span>
+                  <span className="text-white/45"> — {b.action}</span>
+                </li>
+              ))}
+            </ScreenSubList>
+          )}
+
+          {screen.navigation.length > 0 && (
+            <ScreenSubList title="화면 전환">
+              {screen.navigation.map((n, idx) => (
+                <li key={`${n.triggerId}-${idx}`}>
+                  <span className="text-white/45">{n.condition} → </span>
+                  <span className="font-body text-white/85">{n.targetScreenName}</span>
+                </li>
+              ))}
+            </ScreenSubList>
+          )}
+
+          {screen.exceptions.length > 0 && (
+            <ScreenSubList title="예외 처리">
+              {screen.exceptions.map((e, idx) => (
+                <li key={idx}>
+                  <span className="font-body text-white/85">{e.condition}</span>
+                  <span className="text-white/45"> — {e.handling}</span>
+                </li>
+              ))}
+            </ScreenSubList>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ScreenSubList({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <p className="mb-1.5 font-display text-[11px] tracking-[0.15em] text-white/35 uppercase">
+        {title}
+      </p>
+      <ul className="space-y-1 font-body text-sm leading-relaxed">{children}</ul>
+    </div>
+  )
 }
 
 // ── generate modal ─────────────────────────────────────────────
@@ -528,17 +757,26 @@ function TranscriptionPoller({
   onFailed: () => void
 }) {
   const { data } = useMeetingFileStatus(fileId, true)
+  const onCompleteRef = useRef(onComplete)
+  const onFailedRef = useRef(onFailed)
 
   useEffect(() => {
-    if (data?.status === 'COMPLETED') onComplete()
-    if (data?.status === 'FAILED') onFailed()
-  }, [data?.status])
+    onCompleteRef.current = onComplete
+    onFailedRef.current = onFailed
+  }, [onComplete, onFailed])
+
+  useEffect(() => {
+    if (data?.status === 'COMPLETED') onCompleteRef.current()
+    if (data?.status === 'FAILED') onFailedRef.current()
+  }, [data?.status, fileId])
 
   return null
 }
 
 // ── shared sub-components ──────────────────────────────────────
 function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEscapeKey(onClose)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"

@@ -16,6 +16,7 @@ import { stageApi } from '@/features/stage/api'
 import { stageKeys } from '@/features/stage/hooks'
 import { useProjectScreens } from '@/features/wireframe/hooks'
 import { useProjectWebSocket } from '@/shared/lib/useProjectWebSocket'
+import { useEscapeKey } from '@/shared/lib/useEscapeKey'
 import type { ProjectMember, StageType } from '@/shared/api/types'
 
 // ── pipeline config ────────────────────────────────────────────
@@ -342,6 +343,8 @@ function ConfirmModal({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  useEscapeKey(onCancel)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
@@ -496,6 +499,8 @@ function StatusLabel({ status }: { status: DocStatus }) {
 
 // ── export modal ───────────────────────────────────────────────
 function ExportModal({ projectId, onClose }: { projectId: number; onClose: () => void }) {
+  useEscapeKey(onClose)
+
   const { data, isPending, isError, error, refetch } = useExportMarkdown(projectId, true)
   const [copied, setCopied] = useState(false)
 

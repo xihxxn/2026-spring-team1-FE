@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import { ApiError } from '@/shared/api/client'
 import { Badge } from '@/shared/ui/Badge'
 import { GlassCard } from '@/shared/ui/GlassCard'
+import { useEscapeKey } from '@/shared/lib/useEscapeKey'
 import { useCreateProject, useJoinProject, useProjectList } from '../hooks'
 import type { ProjectListItem } from '@/shared/api/types'
 
@@ -103,11 +104,10 @@ function ProjectCard({ project }: { project: ProjectListItem }) {
               {project.description}
             </p>
           )}
-          <div className="mt-4 flex items-center justify-between">
+          <div className="mt-4 flex items-center">
             <Badge tone={project.status === 'ACTIVE' ? 'draft' : 'neutral'}>
               {project.status === 'ACTIVE' ? '진행 중' : '보관됨'}
             </Badge>
-            <span className="font-display text-[10px] text-white/20">#{project.projectId}</span>
           </div>
         </GlassCard>
       </Link>
@@ -140,6 +140,8 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
 
 // ── glass modal wrapper ────────────────────────────────────────
 function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEscapeKey(onClose)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
