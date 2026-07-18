@@ -28,10 +28,11 @@ export function useUploadMeetingFile(projectId: number) {
 }
 
 // STT 변환은 비동기(TRANSCRIBING → COMPLETED/FAILED)라 완료될 때까지 폴링한다.
-export function useMeetingFileStatus(fileId: number) {
+export function useMeetingFileStatus(fileId: number, enabled = true) {
   return useQuery({
     queryKey: meetingKeys.fileStatus(fileId),
     queryFn: ({ signal }) => meetingApi.getFileStatus(fileId, signal),
+    enabled: enabled && fileId > 0,
     refetchInterval: (query) => (query.state.data?.status === 'TRANSCRIBING' ? 3000 : false),
   })
 }

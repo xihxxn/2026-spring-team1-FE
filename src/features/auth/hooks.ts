@@ -28,8 +28,8 @@ export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: LoginRequest) => authApi.login(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: meQueryKey })
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: meQueryKey })
     },
   })
 }
