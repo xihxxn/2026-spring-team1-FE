@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '@/shared/api/client'
 import { Button } from '@/shared/ui/Button'
+import { Field } from '@/shared/ui/Field'
 import { Input } from '@/shared/ui/Input'
 import { useLogin } from '../hooks'
 
@@ -31,59 +32,90 @@ export function LoginPage() {
     login.mutate(values, {
       onSuccess: () => navigate('/projects', { replace: true }),
       onError: (error) => {
-        setFormError(
-          error instanceof ApiError ? error.message : '로그인에 실패했습니다.',
-        )
+        setFormError(error instanceof ApiError ? error.message : '로그인에 실패했습니다.')
       },
     })
   })
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border border-gray-200 bg-white p-8 shadow-sm"
-      >
-        <h1 className="text-xl font-semibold text-gray-900">로그인</h1>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* 좌측: 서비스의 실제 파이프라인을 그대로 인용한 히어로 */}
+      <div className="relative hidden overflow-hidden bg-ink px-16 py-14 text-paper lg:flex lg:flex-col">
+        <span className="coord-label text-draft">x:0 y:0</span>
 
-        <div className="space-y-1">
-          <label className="text-sm text-gray-700" htmlFor="loginId">
-            아이디
-          </label>
-          <Input id="loginId" autoComplete="username" {...register('loginId')} />
-          {errors.loginId && (
-            <p className="text-xs text-red-500">{errors.loginId.message}</p>
-          )}
+        <div className="mt-24 max-w-md space-y-6">
+          <p className="font-display text-[11px] tracking-[0.2em] text-draft uppercase">
+            Team1 · 회의록에서 화면까지
+          </p>
+          <h1 className="font-body text-[42px] leading-[1.2] font-bold tracking-tight">
+            초안을
+            <br />
+            확정으로
+          </h1>
+          <p className="max-w-xs font-body text-[15px] leading-relaxed text-paper/70">
+            회의록 한 장이 기획서, 기능 명세, 화면 기획을 거쳐 와이어프레임으로
+            굳어질 때까지. 팀 리더의 확정 한 번마다 다음 단계가 열립니다.
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm text-gray-700" htmlFor="password">
-            비밀번호
-          </label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            {...register('password')}
-          />
-          {errors.password && (
-            <p className="text-xs text-red-500">{errors.password.message}</p>
+        <ol className="mt-auto flex gap-6 border-t border-paper/10 pt-6 font-display text-[11px] tracking-wide text-draft uppercase">
+          {['기획서', '기능 명세', '화면 기획', '와이어프레임'].map((s, i) => (
+            <li key={s} className="flex items-center gap-2">
+              <span className="text-paper/40">{String(i).padStart(2, '0')}</span>
+              {s}
+            </li>
+          ))}
+        </ol>
+
+        <span className="absolute right-16 bottom-14 coord-label text-draft">
+          x:560 y:640
+        </span>
+      </div>
+
+      {/* 우측: 폼 자체가 하나의 blueprint */}
+      <div className="flex items-center justify-center px-6 py-16">
+        <form onSubmit={onSubmit} className="w-full max-w-sm space-y-7">
+          <div className="space-y-1.5">
+            <h2 className="font-body text-[28px] font-bold tracking-tight text-ink">
+              로그인
+            </h2>
+            <p className="font-body text-sm text-ink-soft">
+              프로젝트로 돌아가서 이어서 진행하세요.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <Field label="아이디" error={errors.loginId?.message} coord="field:01">
+              <Input autoComplete="username" {...register('loginId')} />
+            </Field>
+
+            <Field label="비밀번호" error={errors.password?.message} coord="field:02">
+              <Input
+                type="password"
+                autoComplete="current-password"
+                {...register('password')}
+              />
+            </Field>
+          </div>
+
+          {formError && (
+            <p className="font-display text-[13px] text-danger" role="alert">
+              {formError}
+            </p>
           )}
-        </div>
 
-        {formError && <p className="text-sm text-red-500">{formError}</p>}
+          <Button type="submit" className="w-full" disabled={login.isPending}>
+            {login.isPending ? '확인하는 중…' : '로그인'}
+          </Button>
 
-        <Button type="submit" className="w-full" disabled={login.isPending}>
-          {login.isPending ? '로그인 중…' : '로그인'}
-        </Button>
-
-        <p className="text-center text-sm text-gray-500">
-          계정이 없으신가요?{' '}
-          <Link to="/signup" className="text-violet-600 hover:underline">
-            회원가입
-          </Link>
-        </p>
-      </form>
+          <p className="text-center font-body text-sm text-ink-soft">
+            아직 계정이 없나요?{' '}
+            <Link to="/signup" className="text-ink underline underline-offset-4">
+              회원가입
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   )
 }
