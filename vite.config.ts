@@ -26,14 +26,28 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: Object.fromEntries(
-      backendPaths.map((prefix) => [
-        prefix,
-        {
-          target: 'http://localhost:8081',
-          changeOrigin: true,
-        },
-      ]),
-    ),
+    proxy: {
+      // WebSocket — ws: true 로 업그레이드 헤더를 올바르게 포워딩
+      '/ws': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        ws: true,
+      },
+      // REST API — Accept: text/html 요청(브라우저 새로고침)은 SPA로 fallback
+      ...Object.fromEntries(
+        backendPaths.map((prefix) => [
+          prefix,
+          {
+            target: 'http://localhost:8081',
+            changeOrigin: true,
+            bypass(req: { headers: Record<string, string | string[] | undefined> }) {
+              if ((req.headers['accept'] as string | undefined)?.includes('text/html')) {
+                return '/index.html'
+              }
+            },
+          },
+        ]),
+      ),
+    },
   },
 })
