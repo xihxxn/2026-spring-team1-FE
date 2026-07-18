@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+
+/*
+ * 본문(한글 포함) 폰트: @fontsource/pretendard 는 latin 서브셋만 제공해
+ * 한글 글리프가 없다(한글은 시스템 폰트로 폴백됨). 그래서 원본 pretendard
+ * 패키지의 variable 폰트 파일 하나만 public/fonts 에 담아 직접 선언한다.
+ * variable 폰트라 100~900 전 웨이트를 이 한 파일(woff2, 100/500/700 사용)로 커버한다.
+ */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 헤딩·라벨·좌표 표기용 모노스페이스 */
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+/*
+ * 디자인 컨셉: "초안(draft)이 확정(confirmed)으로 굳어가는 파이프라인".
+ * 이 서비스는 회의록 → PLAN → FEATURE_SPEC → SCREEN_SPEC → WIREFRAME 순으로
+ * 문서가 정제되고, 리더가 각 단계를 "확정"하며 다음으로 넘어간다.
+ * 그 상태 전이(연필 스케치 → 잉크 도장)를 색·모티프의 근거로 삼는다.
+ */
+@theme {
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: 'Pretendard', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+
+  --color-paper: #faf9f6;
+  --color-paper-raised: #ffffff;
+  --color-ink: #1c1b1f;
+  --color-ink-soft: #514f57;
+  --color-draft: #b8b2a6;
+  --color-draft-bg: #f2f0ea;
+  --color-confirm: #2f5d50;
+  --color-confirm-bg: #e7efec;
+  --color-line: #dedad1;
+  --color-danger: #b3452f;
+  --color-danger-bg: #f7e9e4;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-confirm);
+  outline-offset: 2px;
+}
+
+/* ── 와이어프레임 모티프 ──────────────────────────────
+ * 초안 상태의 카드/입력은 점선 테두리 + 옅은 회색(연필 스케치),
+ * 확정/성공 상호작용 시 실선 + 잉크 그린으로 전환된다.
+ * 코너의 좌표 라벨은 이 도구가 다루는 x/y/w/h DSL을 그대로 인용한 장식.
+ */
+.blueprint-frame {
+  position: relative;
+  border: 1.5px dashed var(--color-draft);
+  background-color: var(--color-paper-raised);
+  transition: border-color 300ms ease;
+}
+
+.blueprint-frame::before,
+.blueprint-frame::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: var(--color-draft);
+  transition: border-color 300ms ease;
+}
+
+.blueprint-frame::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1.5px solid;
+  border-left: 1.5px solid;
+}
+
+.blueprint-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1.5px solid;
+  border-right: 1.5px solid;
+}
+
+.blueprint-frame:focus-within {
+  border-style: solid;
+  border-color: var(--color-confirm);
+}
+
+.blueprint-frame:focus-within::before,
+.blueprint-frame:focus-within::after {
+  border-color: var(--color-confirm);
+}
+
+.coord-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--color-draft);
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
