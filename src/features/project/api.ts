@@ -8,6 +8,9 @@ import type {
   ProjectJoinResponse,
   ProjectListResponse,
   ProjectMemberListResponse,
+  ProjectRemoveMemberResponse,
+  ProjectTransferLeaderRequest,
+  ProjectTransferLeaderResponse,
 } from '@/shared/api/types'
 
 export const projectApi = {
@@ -21,4 +24,8 @@ export const projectApi = {
   createInviteLink: (projectId: number) =>
     api.post<ProjectInviteLinkResponse>(`/projects/${projectId}/invite-link`),
   join: (body: ProjectJoinRequest) => api.post<ProjectJoinResponse>('/projects/join', body),
+  transferLeader: (projectId: number, body: ProjectTransferLeaderRequest) =>
+    api.post<ProjectTransferLeaderResponse>(`/projects/${projectId}/leader`, body),
+  removeMember: (projectId: number, memberId: number) =>
+    api.delete<ProjectRemoveMemberResponse>(`/projects/${projectId}/members/${memberId}`),
 }

@@ -60,6 +60,11 @@ body {
   outline-offset: 2px;
 }
 
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
 /* ── 와이어프레임 모티프 ──────────────────────────────
  * 초안 상태의 카드/입력은 점선 테두리 + 옅은 회색(연필 스케치),
  * 확정/성공 상호작용 시 실선 + 잉크 그린으로 전환된다.
@@ -112,6 +117,51 @@ body {
   letter-spacing: 0.06em;
   color: var(--color-draft);
   user-select: none;
+}
+
+@keyframes orb-float {
+  0%   { transform: translate(0px, 0px) scale(1); }
+  15%  { transform: translate(-420px, 200px) scale(1.06); }
+  30%  { transform: translate(-800px, 80px) scale(0.94); }
+  45%  { transform: translate(-640px, 480px) scale(1.1); }
+  60%  { transform: translate(-200px, 600px) scale(0.96); }
+  75%  { transform: translate(-900px, 340px) scale(1.04); }
+  88%  { transform: translate(-500px, 160px) scale(0.98); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes orb-float-alt {
+  0%   { transform: translate(0px, 0px) scale(1); }
+  18%  { transform: translate(360px, -220px) scale(1.08); }
+  36%  { transform: translate(700px, -100px) scale(0.93); }
+  52%  { transform: translate(500px, -480px) scale(1.1); }
+  68%  { transform: translate(180px, -560px) scale(0.95); }
+  82%  { transform: translate(650px, -300px) scale(1.05); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.orb-main {
+  animation: orb-float 28s ease-in-out infinite;
+  will-change: transform;
+}
+
+.orb-sub {
+  animation: orb-float-alt 21s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes orb-float-sky {
+  0%   { transform: translate(0px, 0px) scale(1); }
+  20%  { transform: translate(300px, -180px) scale(1.07); }
+  40%  { transform: translate(-200px, -350px) scale(0.94); }
+  60%  { transform: translate(500px, -200px) scale(1.05); }
+  80%  { transform: translate(100px, -450px) scale(0.97); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.orb-sky {
+  animation: orb-float-sky 25s ease-in-out infinite;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

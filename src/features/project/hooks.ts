@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProjectCreateRequest, ProjectJoinRequest } from '@/shared/api/types'
 import { projectApi } from './api'
 
+
 export const projectKeys = {
   all: ['projects'] as const,
   list: () => [...projectKeys.all, 'list'] as const,
@@ -13,6 +14,22 @@ export function useProjectList() {
   return useQuery({
     queryKey: projectKeys.list(),
     queryFn: ({ signal }) => projectApi.list(signal),
+  })
+}
+
+export function useProjectDetail(projectId: number) {
+  return useQuery({
+    queryKey: projectKeys.detail(projectId),
+    queryFn: ({ signal }) => projectApi.detail(projectId, signal),
+    enabled: projectId > 0,
+  })
+}
+
+export function useProjectMembers(projectId: number) {
+  return useQuery({
+    queryKey: projectKeys.members(projectId),
+    queryFn: ({ signal }) => projectApi.members(projectId, signal),
+    enabled: projectId > 0,
   })
 }
 
@@ -36,9 +53,30 @@ export function useJoinProject() {
   })
 }
 
-// 초대 링크는 프로젝트 상태를 바꾸지 않으므로 캐시 무효화가 필요 없다.
 export function useCreateInviteLink() {
   return useMutation({
     mutationFn: (projectId: number) => projectApi.createInviteLink(projectId),
+  })
+}
+
+export function useTransferLeader(projectId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (newLeaderId: number) =>
+      projectApi.transferLeader(projectId, { newLeaderId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
+      queryClient.invalidateQueries({ queryKey: projectKeys.members(projectId) })
+    },
+  })
+}
+
+export function useRemoveMember(projectId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: number) => projectApi.removeMember(projectId, memberId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.members(projectId) })
+    },
   })
 }
