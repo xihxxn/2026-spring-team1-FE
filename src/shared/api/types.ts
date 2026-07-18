@@ -129,6 +129,19 @@ export interface ProjectJoinResponse {
   role: ProjectMemberRole
 }
 
+export interface ProjectTransferLeaderRequest {
+  newLeaderId: number
+}
+
+export interface ProjectTransferLeaderResponse {
+  projectId: number
+  message: string
+}
+
+export interface ProjectRemoveMemberResponse {
+  message: string
+}
+
 // ─────────────────────────────────────────
 // stage document
 // ─────────────────────────────────────────

@@ -1,0 +1,141 @@
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { stageKeys } from '@/features/stage/hooks'
+import { wireframeKeys } from '@/features/wireframe/hooks'
+
+// ── 서버와 주고받는 메시지 형식 ────────────────────────────────
+type RealtimeEventType =
+  | 'USER_JOINED'
+  | 'USER_LEFT'
+  | 'DOCUMENT_UPDATE'
+  | 'AI_GENERATION_COMPLETED'
+  | 'STAGE_CONFIRMED'
+  | 'WIREFRAME_UPDATED'
+  | 'REGENERATION_REQUESTED'
+
+interface RealtimeEventMessage {
+  type: RealtimeEventType
+  projectId: number
+  userId: number
+  payload: Record<string, unknown>
+  timestamp: string
+}
+
+interface UseProjectWebSocketResult {
+  /** 현재 프로젝트에 접속 중인 사용자 수 (본인 포함) */
+  onlineCount: number
+  /** 다른 멤버에게 문서 편집 내용을 브로드캐스트 */
+  sendDocumentUpdate: (payload: Record<string, unknown>) => void
+}
+
+export function useProjectWebSocket(projectId: number): UseProjectWebSocketResult {
+  const queryClient = useQueryClient()
+  const wsRef = useRef<WebSocket | null>(null)
+  const mountedRef = useRef(true)
+  const [onlineCount, setOnlineCount] = useState(0)
+
+  useEffect(() => {
+    if (!projectId) return
+    mountedRef.current = true
+
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+    const connect = () => {
+      // ws: / wss: 는 현재 페이지 프로토콜을 따름 (개발: ws, 운영: wss)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}`)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer)
+          reconnectTimer = null
+        }
+        // 재연결 시 이전 카운트 초기화 — USER_JOINED 이벤트로 다시 집계
+        setOnlineCount(0)
+      }
+
+      ws.onmessage = (event: MessageEvent) => {
+        try {
+          const msg: RealtimeEventMessage = JSON.parse(event.data as string)
+          handleEvent(msg)
+        } catch {
+          // 파싱 실패 시 무시
+        }
+      }
+
+      ws.onclose = () => {
+        wsRef.current = null
+        if (mountedRef.current) {
+          // 3초 후 재연결
+          reconnectTimer = setTimeout(connect, 3000)
+        }
+      }
+
+      ws.onerror = () => {
+        ws.close()
+      }
+    }
+
+    const handleEvent = (msg: RealtimeEventMessage) => {
+      switch (msg.type) {
+        case 'USER_JOINED': {
+          const total = msg.payload?.onlineCount
+          if (typeof total === 'number') setOnlineCount(total)
+          else setOnlineCount((n) => n + 1)
+          break
+        }
+
+        case 'USER_LEFT': {
+          const total = msg.payload?.onlineCount
+          if (typeof total === 'number') setOnlineCount(total)
+          else setOnlineCount((n) => Math.max(0, n - 1))
+          break
+        }
+
+        case 'AI_GENERATION_COMPLETED':
+        case 'STAGE_CONFIRMED':
+          // 해당 프로젝트의 모든 stage-document 캐시 갱신
+          queryClient.invalidateQueries({ queryKey: [...stageKeys.all, projectId] })
+          break
+
+        case 'DOCUMENT_UPDATE':
+          // 다른 사용자의 편집 — 스냅샷 재조회
+          queryClient.invalidateQueries({ queryKey: [...stageKeys.all, projectId] })
+          break
+
+        case 'WIREFRAME_UPDATED':
+          queryClient.invalidateQueries({ queryKey: wireframeKeys.screens(projectId) })
+          break
+
+        case 'REGENERATION_REQUESTED':
+          queryClient.invalidateQueries({
+            queryKey: wireframeKeys.regenerationRequests(projectId),
+          })
+          break
+      }
+    }
+
+    connect()
+
+    return () => {
+      mountedRef.current = false
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      wsRef.current?.close()
+      wsRef.current = null
+    }
+  }, [projectId, queryClient])
+
+  const sendDocumentUpdate = (payload: Record<string, unknown>) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(
+      JSON.stringify({
+        type: 'DOCUMENT_UPDATE',
+        payload,
+      }),
+    )
+  }
+
+  return { onlineCount, sendDocumentUpdate }
+}
