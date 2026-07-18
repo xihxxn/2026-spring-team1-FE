@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useMe } from '@/features/auth/hooks'
 import { stageKeys } from '@/features/stage/hooks'
 import { wireframeKeys } from '@/features/wireframe/hooks'
 
@@ -30,9 +31,15 @@ interface UseProjectWebSocketResult {
 
 export function useProjectWebSocket(projectId: number): UseProjectWebSocketResult {
   const queryClient = useQueryClient()
+  const { data: me } = useMe()
   const wsRef = useRef<WebSocket | null>(null)
+  const currentUserIdRef = useRef<number | null>(me?.userId ?? null)
   const mountedRef = useRef(true)
   const [onlineCount, setOnlineCount] = useState(0)
+
+  useEffect(() => {
+    currentUserIdRef.current = me?.userId ?? null
+  }, [me?.userId])
 
   useEffect(() => {
     if (!projectId) return
@@ -95,14 +102,18 @@ export function useProjectWebSocket(projectId: number): UseProjectWebSocketResul
 
         case 'AI_GENERATION_COMPLETED':
         case 'STAGE_CONFIRMED':
-          // 해당 프로젝트의 모든 stage-document 캐시 갱신
-          queryClient.invalidateQueries({ queryKey: [...stageKeys.all, projectId] })
+        case 'DOCUMENT_UPDATE': {
+          // 내 REST 응답은 각 mutation이 이미 캐시에 반영하므로 stale 표시만 한다.
+          // 다른 사용자의 이벤트는 현재 보고 있는 문서를 즉시 다시 조회해야 공동 편집
+          // 변경이 화면에 나타난다. 로그인 정보가 아직 없으면 안전하게 원격 이벤트로 본다.
+          const isOwnEvent =
+            currentUserIdRef.current !== null && msg.userId === currentUserIdRef.current
+          queryClient.invalidateQueries({
+            queryKey: [...stageKeys.all, projectId],
+            refetchType: isOwnEvent ? 'none' : 'active',
+          })
           break
-
-        case 'DOCUMENT_UPDATE':
-          // 다른 사용자의 편집 — 스냅샷 재조회
-          queryClient.invalidateQueries({ queryKey: [...stageKeys.all, projectId] })
-          break
+        }
 
         case 'WIREFRAME_UPDATED':
           queryClient.invalidateQueries({ queryKey: wireframeKeys.screens(projectId) })
