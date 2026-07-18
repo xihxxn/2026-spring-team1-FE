@@ -25,6 +25,8 @@ export type ProjectStatus = 'ACTIVE' | 'ARCHIVED'
 export type StageType = 'PLAN' | 'FEATURE_SPEC' | 'SCREEN_SPEC' | 'WIREFRAME'
 export type StageDocumentStatus = 'DRAFT' | 'CONFIRMED'
 export type SourceType = 'MEETING_NOTE' | 'MEETING_FILE' | 'STAGE_DOCUMENT'
+export type MeetingFileStatus = 'TRANSCRIBING' | 'COMPLETED' | 'FAILED'
+export type WireframeRegenerationRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 // ─────────────────────────────────────────
 // auth
@@ -189,4 +191,72 @@ export interface WireframeGenerateRequest {
 
 export interface WireframeRegenerationCreateRequest {
   reason: string
+}
+
+export interface WireframeRegenerationCreateResponse {
+  requestId: number
+  screenId: number
+  status: WireframeRegenerationRequestStatus
+  message: string
+}
+
+export interface WireframeRegenerationRequester {
+  userId: number
+  name: string
+}
+
+export interface WireframeRegenerationItem {
+  requestId: number
+  screenId: number
+  screenName: string
+  requestedBy: WireframeRegenerationRequester
+  reason: string
+  status: WireframeRegenerationRequestStatus
+  createdAt: string
+}
+
+export interface WireframeRegenerationListResponse {
+  requests: WireframeRegenerationItem[]
+}
+
+export interface WireframeRegenerationAcceptResponse {
+  requestId: number
+  screenId: number
+  status: WireframeRegenerationRequestStatus
+  message: string
+  wireframe: WireframeDsl
+}
+
+export interface WireframeRegenerationRejectResponse {
+  requestId: number
+  status: WireframeRegenerationRequestStatus
+  message: string
+}
+
+// ─────────────────────────────────────────
+// meeting
+// ─────────────────────────────────────────
+
+export interface MeetingNoteCreateRequest {
+  title: string
+  content: string
+}
+
+export interface MeetingNoteCreateResponse {
+  meetingNoteId: number
+  title: string
+  message: string
+}
+
+export interface MeetingFileUploadResponse {
+  fileId: number
+  fileName: string
+  status: MeetingFileStatus
+  message: string
+}
+
+export interface MeetingFileStatusResponse {
+  fileId: number
+  status: MeetingFileStatus
+  transcript: string | null
 }

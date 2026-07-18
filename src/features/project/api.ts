@@ -3,6 +3,7 @@ import type {
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectDetailResponse,
+  ProjectInviteLinkResponse,
   ProjectJoinRequest,
   ProjectJoinResponse,
   ProjectListResponse,
@@ -17,5 +18,7 @@ export const projectApi = {
     api.get<ProjectMemberListResponse>(`/projects/${projectId}/members`, signal),
   create: (body: ProjectCreateRequest) =>
     api.post<ProjectCreateResponse>('/projects', body),
+  createInviteLink: (projectId: number) =>
+    api.post<ProjectInviteLinkResponse>(`/projects/${projectId}/invite-link`),
   join: (body: ProjectJoinRequest) => api.post<ProjectJoinResponse>('/projects/join', body),
 }
