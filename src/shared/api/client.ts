@@ -79,3 +79,29 @@ export async function fetchText(path: string): Promise<string> {
   }
   return response.text()
 }
+
+// multipart/form-data 업로드 전용. request() 는 body를 항상 JSON.stringify 하므로
+// 파일 업로드(예: 회의 녹음 파일)에는 별도 경로가 필요하다. Content-Type 헤더는
+// 브라우저가 boundary 를 붙여 자동 설정하도록 직접 지정하지 않는다.
+export async function postFormData<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    body: formData,
+  })
+
+  const text = await response.text()
+  const parsed: unknown = text ? JSON.parse(text) : null
+
+  if (!response.ok) {
+    const errorBody = extractErrorBody(parsed)
+    throw new ApiError(
+      response.status,
+      errorBody?.code ?? 'UNKNOWN',
+      errorBody?.message ?? `요청에 실패했습니다. (${response.status})`,
+    )
+  }
+
+  const envelope = parsed as ApiResponse<T> | null
+  return (envelope?.data ?? null) as T
+}
