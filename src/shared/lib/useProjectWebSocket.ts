@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMe } from '@/features/auth/hooks'
 import { stageKeys } from '@/features/stage/hooks'
 import { wireframeKeys } from '@/features/wireframe/hooks'
+import { webSocketUrl } from '@/shared/config/environment'
 
 // ── 서버와 주고받는 메시지 형식 ────────────────────────────────
 type RealtimeEventType =
@@ -48,9 +49,7 @@ export function useProjectWebSocket(projectId: number): UseProjectWebSocketResul
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
     const connect = () => {
-      // ws: / wss: 는 현재 페이지 프로토콜을 따름 (개발: ws, 운영: wss)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}`)
+      const ws = new WebSocket(webSocketUrl(`/ws/projects/${projectId}`))
       wsRef.current = ws
 
       ws.onopen = () => {
