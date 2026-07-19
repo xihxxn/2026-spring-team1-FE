@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useMe } from '@/features/auth/hooks'
+import { useMe, useSessionToken } from '@/features/auth/hooks'
 import { stageKeys } from '@/features/stage/hooks'
 import { wireframeKeys } from '@/features/wireframe/hooks'
 import { webSocketUrl } from '@/shared/config/environment'
@@ -33,8 +33,10 @@ interface UseProjectWebSocketResult {
 export function useProjectWebSocket(projectId: number): UseProjectWebSocketResult {
   const queryClient = useQueryClient()
   const { data: me } = useMe()
+  const { data: sessionToken } = useSessionToken()
   const wsRef = useRef<WebSocket | null>(null)
   const currentUserIdRef = useRef<number | null>(me?.userId ?? null)
+  const sessionTokenRef = useRef<string | null>(sessionToken ?? null)
   const mountedRef = useRef(true)
   const [onlineCount, setOnlineCount] = useState(0)
 
@@ -43,13 +45,23 @@ export function useProjectWebSocket(projectId: number): UseProjectWebSocketResul
   }, [me?.userId])
 
   useEffect(() => {
+    sessionTokenRef.current = sessionToken ?? null
+  }, [sessionToken])
+
+  useEffect(() => {
     if (!projectId) return
     mountedRef.current = true
 
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
     const connect = () => {
-      const ws = new WebSocket(webSocketUrl(`/ws/projects/${projectId}`))
+      // 크로스도메인 배포에서는 세션 쿠키가 WS 핸드셰이크에 실리지 않을 수 있어
+      // 로그인 시 받은 세션 토큰을 쿼리 파라미터로 대신 전달한다.
+      const token = sessionTokenRef.current
+      const path = token
+        ? `/ws/projects/${projectId}?token=${encodeURIComponent(token)}`
+        : `/ws/projects/${projectId}`
+      const ws = new WebSocket(webSocketUrl(path))
       wsRef.current = ws
 
       ws.onopen = () => {

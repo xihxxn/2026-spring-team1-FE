@@ -1,8 +1,11 @@
 {
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/auth/:path*", "destination": "https://3-38-190-86.sslip.io/auth/:path*" },
+    { "source": "/projects/:path*", "destination": "https://3-38-190-86.sslip.io/projects/:path*" },
+    { "source": "/screens/:path*", "destination": "https://3-38-190-86.sslip.io/screens/:path*" },
+    { "source": "/wireframe/:path*", "destination": "https://3-38-190-86.sslip.io/wireframe/:path*" },
+    { "source": "/stage-documents/:path*", "destination": "https://3-38-190-86.sslip.io/stage-documents/:path*" },
+    { "source": "/meeting-files/:path*", "destination": "https://3-38-190-86.sslip.io/meeting-files/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

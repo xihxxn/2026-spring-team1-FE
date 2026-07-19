@@ -53,6 +53,7 @@ export interface LoginResponse {
   id: number
   loginId: string
   name: string
+  sessionToken: string
 }
 
 export interface MeResponse {
