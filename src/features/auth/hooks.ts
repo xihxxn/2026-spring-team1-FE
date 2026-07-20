@@ -63,9 +63,9 @@ export function useLogout() {
     mutationFn: () => authApi.logout(),
     onSettled: () => {
       // 성공/실패와 무관하게 클라이언트 상태는 비운다.
-      queryClient.setQueryData(meQueryKey, null)
-      queryClient.setQueryData(sessionTokenQueryKey, null)
-      queryClient.invalidateQueries({ queryKey: meQueryKey })
+      // 계정 전환 시 이전 사용자의 프로젝트/문서 등이 캐시에 남아 다음 로그인 사용자에게
+      // 보이지 않도록 캐시 전체를 비운다.
+      queryClient.clear()
     },
   })
 }
